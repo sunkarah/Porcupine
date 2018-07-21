@@ -24,6 +24,7 @@ from threading import Thread
 
 import numpy as np
 import pyaudio
+import requests
 import soundfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../binding/python'))
@@ -45,7 +46,8 @@ class PorcupineDemo(Thread):
             keyword_file_paths,
             sensitivity=0.5,
             input_device_index=None,
-            output_path=None):
+            output_path=None,
+            callback_url=None):
 
         """
         Constructor.
@@ -58,6 +60,7 @@ class PorcupineDemo(Thread):
         :param input_device_index: Optional argument. If provided, audio is recorded from this input device. Otherwise,
         the default audio input device is used.
         :param output_path: If provided recorded audio will be stored in this location at the end of the run.
+        :param callback_url: Url to call when wake word is detected
         """
 
         super(PorcupineDemo, self).__init__()
@@ -67,6 +70,7 @@ class PorcupineDemo(Thread):
         self._keyword_file_paths = keyword_file_paths
         self._sensitivity = float(sensitivity)
         self._input_device_index = input_device_index
+        self._callback_url = callback_url
 
         self._output_path = output_path
         if self._output_path is not None:
@@ -101,7 +105,7 @@ class PorcupineDemo(Thread):
                 input_device_index=self._input_device_index)
 
             while True:
-                pcm = audio_stream.read(porcupine.frame_length)
+                pcm = audio_stream.read(porcupine.frame_length, exception_on_overflow = False)
                 pcm = struct.unpack_from("h" * porcupine.frame_length, pcm)
 
                 if self._output_path is not None:
@@ -110,6 +114,11 @@ class PorcupineDemo(Thread):
                 result = porcupine.process(pcm)
                 if num_keywords == 1 and result:
                     print('[%s] detected keyword' % str(datetime.now()))
+                    try:
+                        requests.get(self._callback_url)
+                    except requests.exceptions.ConnectionError:
+                        print("Couldn't reach callback url")
+
                 elif num_keywords > 1 and result >= 0:
                     print('[%s] detected keyword #%d' % (str(datetime.now()), result))
 
@@ -190,6 +199,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--show_audio_devices_info', action='store_true')
 
+    parser.add_argument(
+        '--callback_url',
+        help='url to call when wake word is detected',
+        type=str,
+        default='http://localhost:8080/capture_speech')
+
     args = parser.parse_args()
 
     if args.show_audio_devices_info:
@@ -201,4 +216,5 @@ if __name__ == '__main__':
             keyword_file_paths=[x.strip() for x in args.keyword_file_paths.split(',')],
             sensitivity=args.sensitivity,
             output_path=args.output_path,
-            input_device_index=args.input_audio_device_index).run()
+            input_device_index=args.input_audio_device_index,
+            callback_url=args.callback_url).run()
