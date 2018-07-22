@@ -203,7 +203,7 @@ if __name__ == '__main__':
         '--callback_url',
         help='url to call when wake word is detected',
         type=str,
-        default='http://localhost:8080/capture_speech')
+        default='http://localhost:8080/capture')
 
     args = parser.parse_args()
 
