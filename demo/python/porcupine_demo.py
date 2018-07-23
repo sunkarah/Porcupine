@@ -171,8 +171,14 @@ def _default_library_path():
             return os.path.join(os.path.dirname(__file__), '..\\..\\lib\\windows\\amd64\\libpv_porcupine.dll')
     raise NotImplementedError('Porcupine is not supported on %s/%s yet!' % (system, machine))
 
+def writePidFile():
+    pid = str(os.getpid())
+    f = open('process.pid', 'w')
+    f.write(pid)
+    f.close()
 
 if __name__ == '__main__':
+    writePidFile()
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--keyword_file_paths', help='comma-separated absolute paths to keyword files', type=str, required=True)
